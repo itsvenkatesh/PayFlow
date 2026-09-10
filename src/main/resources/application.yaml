@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: PayFlow
+
+  datasource:
+    url: jdbc:postgresql://pay-flow-venkateshpentakota147-65fa.l.aivencloud.com:17503/defaultdb?sslmode=require
+    username: avnadmin
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
