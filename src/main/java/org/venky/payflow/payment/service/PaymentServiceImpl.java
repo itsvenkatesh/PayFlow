@@ -2,7 +2,7 @@ package org.venky.payflow.payment.service;
 
 import org.springframework.stereotype.Service;
 import org.venky.payflow.common.exception.InvalidPaymentStatusTransitionException;
-import org.venky.payflow.common.exception.PaymentNotFoundException;
+import org.venky.payflow.common.exception.ResourceNotFoundException;
 import org.venky.payflow.payment.dto.CreatePaymentRequest;
 import org.venky.payflow.payment.dto.PaymentResponse;
 import org.venky.payflow.payment.dto.UpdatePaymentStatusRequest;
@@ -38,8 +38,6 @@ public class PaymentServiceImpl implements PaymentService {
         Payment paymentResponse = paymentRepository.save(payment);
 
         return paymentMapper.toResponse(paymentResponse);
-
-
     }
 
     @Override
@@ -59,7 +57,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (payment.isPresent()){
             return paymentMapper.toResponse(payment.get());
         }
-        throw  new PaymentNotFoundException("Payment not found with payment id " + paymentId);
+        throw  new ResourceNotFoundException("Payment not found with payment id " + paymentId);
     }
 
     @Override
@@ -72,7 +70,7 @@ public class PaymentServiceImpl implements PaymentService {
         Optional<Payment> payment = paymentRepository.findById(paymentId);
 
         if (payment.isEmpty()){
-            throw  new PaymentNotFoundException("Payment not found with payment id " + paymentId);
+            throw  new ResourceNotFoundException("Payment not found with payment id " + paymentId);
         }
 
         if (validateStatusTransition(payment.get().getStatus(), updatePaymentStatusRequest )){
