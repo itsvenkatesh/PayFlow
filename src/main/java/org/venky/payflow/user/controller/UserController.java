@@ -1,8 +1,6 @@
 package org.venky.payflow.user.controller;
 
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-import org.venky.payflow.user.dto.CreateUserRequest;
 import org.venky.payflow.user.dto.UserResponse;
 import org.venky.payflow.user.service.UserService;
 
@@ -17,11 +15,6 @@ public class UserController {
 
     public UserController(UserService userService) {
         this.userService = userService;
-    }
-
-    @PostMapping
-    public UserResponse createUser(@RequestBody @Valid CreateUserRequest createUserRequest){
-        return userService.createUser(createUserRequest);
     }
 
     @GetMapping
