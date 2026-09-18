@@ -2,6 +2,7 @@ package org.venky.payflow.payment.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import org.venky.payflow.idempotency.entity.IdempotencyRecord;
 import org.venky.payflow.payment.dto.CreatePaymentRequest;
 import org.venky.payflow.payment.dto.PaymentResponse;
 import org.venky.payflow.payment.dto.UpdatePaymentStatusRequest;
@@ -23,8 +24,8 @@ public class PaymentController {
 
 
     @PostMapping
-    public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest createPaymentRequest){
-        return paymentService.createPaymentRequest(createPaymentRequest);
+    public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest createPaymentRequest, @RequestHeader("idempotency-key") String idempotencyKey){
+        return paymentService.createPaymentRequest(createPaymentRequest, idempotencyKey);
     }
 
     @GetMapping
