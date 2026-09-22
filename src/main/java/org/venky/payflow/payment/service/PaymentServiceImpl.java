@@ -119,7 +119,9 @@ public class PaymentServiceImpl implements PaymentService {
         boolean valid = switch (currentStatus){
             case CREATED -> updatePaymentStatusRequest.getStatus() == PaymentStatus.PROCESSING;
             case PROCESSING -> updatePaymentStatusRequest.getStatus() == PaymentStatus.SUCCESS || updatePaymentStatusRequest.getStatus()  == PaymentStatus.FAILED;
-            case SUCCESS, FAILED -> false;
+            case SUCCESS -> updatePaymentStatusRequest.getStatus() == PaymentStatus.REFUND_PENDING;
+            case REFUND_PENDING ->  updatePaymentStatusRequest.getStatus() == PaymentStatus.REFUNDED;
+            case FAILED, REFUNDED -> false;
         };
 
         if (!valid){

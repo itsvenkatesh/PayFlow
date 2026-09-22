@@ -2,11 +2,9 @@ package org.venky.payflow.payment.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-import org.venky.payflow.idempotency.entity.IdempotencyRecord;
 import org.venky.payflow.payment.dto.CreatePaymentRequest;
 import org.venky.payflow.payment.dto.PaymentResponse;
 import org.venky.payflow.payment.dto.UpdatePaymentStatusRequest;
-import org.venky.payflow.payment.enums.PaymentStatus;
 import org.venky.payflow.payment.service.PaymentService;
 
 import java.util.List;
@@ -40,6 +38,11 @@ public class PaymentController {
 
     @PatchMapping("/{paymentId}/status")
     public PaymentResponse updatePaymentStatus(@PathVariable UUID paymentId, @RequestBody UpdatePaymentStatusRequest updatePaymentStatusRequest) {
+        return paymentService.updatePaymentStatusByPaymentId(paymentId, updatePaymentStatusRequest);
+    }
+
+    @PatchMapping("/{paymentId}/refund")
+    public PaymentResponse updateRefundStatus(@PathVariable UUID paymentId, @RequestBody UpdatePaymentStatusRequest updatePaymentStatusRequest) {
         return paymentService.updatePaymentStatusByPaymentId(paymentId, updatePaymentStatusRequest);
     }
 }
