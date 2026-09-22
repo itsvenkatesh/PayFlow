@@ -15,12 +15,7 @@ public class CreatePaymentRequest {
     @Positive
     private Long amount;
 
-    @NotNull
-    private UUID customerId;
-
     @NotBlank
     @Size(min =3 , max =3)
     private String currency;
-
-
 }

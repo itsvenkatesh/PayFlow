@@ -6,13 +6,14 @@ import org.venky.payflow.payment.dto.CreatePaymentRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.UUID;
 
 @Service
 public class RequestHashServiceImpl implements RequestHashService{
     @Override
-    public String generateHash(CreatePaymentRequest request) throws NoSuchAlgorithmException {
+    public String generateHash(CreatePaymentRequest request, UUID customerId) throws NoSuchAlgorithmException {
         String canonical = request.getAmount().toString()
-                + "|" + request.getCustomerId().toString()
+                + "|" + customerId
                 + "|" + request.getCurrency();
 
         byte[] bytes = canonical.getBytes(StandardCharsets.UTF_8);

@@ -15,7 +15,9 @@ public interface PaymentService {
 
     public PaymentResponse getPaymentByPaymentId(UUID paymentId);
 
-    public PaymentResponse updatePaymentByPaymentId(CreatePaymentRequest createPaymentRequest);
+    public PaymentResponse refundPayment(UUID PaymentRequestId);
+
+    public PaymentResponse processRefund(UUID PaymentId, UpdatePaymentStatusRequest request);
 
     public PaymentResponse updatePaymentStatusByPaymentId(UUID paymentId, UpdatePaymentStatusRequest updatePaymentStatusRequest);
 }
