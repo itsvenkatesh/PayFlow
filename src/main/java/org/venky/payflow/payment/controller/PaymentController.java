@@ -1,6 +1,7 @@
 package org.venky.payflow.payment.controller;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.venky.payflow.payment.dto.CreatePaymentRequest;
 import org.venky.payflow.payment.dto.PaymentResponse;
@@ -22,6 +23,7 @@ public class PaymentController {
 
 
     @PostMapping
+    @PreAuthorize("hasRole('CUSTOMER')")
     public PaymentResponse createPayment(@Valid @RequestBody CreatePaymentRequest createPaymentRequest, @RequestHeader("idempotency-key") String idempotencyKey){
         return paymentService.createPaymentRequest(createPaymentRequest, idempotencyKey);
     }
@@ -37,11 +39,19 @@ public class PaymentController {
     }
 
     @PatchMapping("/{paymentId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public PaymentResponse updatePaymentStatus(@PathVariable UUID paymentId, @RequestBody UpdatePaymentStatusRequest updatePaymentStatusRequest) {
         return paymentService.updatePaymentStatusByPaymentId(paymentId, updatePaymentStatusRequest);
     }
 
+    @PostMapping("/{paymentId}/refund")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public PaymentResponse refundPayment(@PathVariable UUID paymentId) {
+        return paymentService.refundPayment(paymentId);
+    }
+
     @PatchMapping("/{paymentId}/refund")
+    @PreAuthorize("hasRole('ADMIN')")
     public PaymentResponse updateRefundStatus(@PathVariable UUID paymentId, @RequestBody UpdatePaymentStatusRequest updatePaymentStatusRequest) {
         return paymentService.updatePaymentStatusByPaymentId(paymentId, updatePaymentStatusRequest);
     }

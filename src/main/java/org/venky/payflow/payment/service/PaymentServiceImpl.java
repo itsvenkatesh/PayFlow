@@ -1,5 +1,9 @@
 package org.venky.payflow.payment.service;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.venky.payflow.common.exception.IdempotencyConflictException;
@@ -16,6 +20,7 @@ import org.venky.payflow.payment.entity.Payment;
 import org.venky.payflow.payment.enums.PaymentStatus;
 import org.venky.payflow.payment.mapper.PaymentMapper;
 import org.venky.payflow.payment.repository.PaymentRepository;
+import org.venky.payflow.user.security.AuthenticatedUser;
 
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -41,9 +46,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     @Override
     public PaymentResponse createPaymentRequest(CreatePaymentRequest createPaymentRequest, String idempotencyKey) {
+        UUID customerId = extractUserIdFromAuthentication();
         String hash;
         try {
-            hash = requestHashService.generateHash(createPaymentRequest);
+            hash = requestHashService.generateHash(createPaymentRequest, customerId);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
@@ -51,8 +57,8 @@ public class PaymentServiceImpl implements PaymentService {
         IdempotencyCheckResult idempotencyCheckResult = idempotencyService.check(idempotencyKey, hash);
 
         if (idempotencyCheckResult.getStatus() == IdempotencyCheckStatus.NEW) {
-
             Payment payment = paymentMapper.toEntity(createPaymentRequest);
+            payment.setCustomerId(customerId);
             payment.setStatus(PaymentStatus.CREATED);
             payment.setCreatedAt(LocalDateTime.now());
             payment.setUpdatedAt(LocalDateTime.now());
@@ -93,9 +99,53 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public PaymentResponse updatePaymentByPaymentId(CreatePaymentRequest createPaymentRequest) {
-        return null;
+    public PaymentResponse refundPayment(UUID paymentId) {
+        Optional<Payment> paymentOptional = paymentRepository.findById(paymentId);
+
+        if (paymentOptional.isEmpty()){
+            throw  new ResourceNotFoundException("Payment not found with payment id " + paymentId);
+        }
+        Payment payment = paymentOptional.get();
+
+        UUID authenticatedUserId = extractUserIdFromAuthentication();
+
+        if (!payment.getCustomerId().equals(authenticatedUserId)) {
+            throw new AccessDeniedException("You are not allowed to refund this payment");
+        }
+
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new InvalidPaymentStatusTransitionException(
+                    "Payment cannot be refunded from status " + payment.getStatus()
+            );
+        }
+
+        payment.setStatus(PaymentStatus.REFUND_PENDING);
+        payment.setUpdatedAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        return paymentMapper.toResponse(payment);
     }
+
+    @Override
+    public PaymentResponse processRefund(UUID paymentId, UpdatePaymentStatusRequest updatePaymentStatusRequest) {
+        Optional<Payment> optionalPayment = paymentRepository.findById(paymentId);
+
+        if (optionalPayment.isEmpty()){
+            throw  new ResourceNotFoundException("Payment not found with payment id " + paymentId);
+        }
+
+        Payment payment = optionalPayment.get();
+
+        validateStatusTransition(payment.getStatus(), updatePaymentStatusRequest);
+        payment.setStatus(updatePaymentStatusRequest.getStatus());
+
+        payment.setUpdatedAt(LocalDateTime.now());
+
+        paymentRepository.save(payment);
+        return paymentMapper.toResponse(payment);
+
+    }
+
 
     @Override
     public PaymentResponse updatePaymentStatusByPaymentId(UUID paymentId, UpdatePaymentStatusRequest updatePaymentStatusRequest) {
@@ -105,9 +155,9 @@ public class PaymentServiceImpl implements PaymentService {
             throw  new ResourceNotFoundException("Payment not found with payment id " + paymentId);
         }
 
-        if (validateStatusTransition(payment.get().getStatus(), updatePaymentStatusRequest )){
-            payment.get().setStatus(updatePaymentStatusRequest.getStatus());
-        }
+        validateStatusTransition(payment.get().getStatus(), updatePaymentStatusRequest );
+        payment.get().setStatus(updatePaymentStatusRequest.getStatus());
+
         payment.get().setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment.get());
 
@@ -115,18 +165,30 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
 
-    private boolean validateStatusTransition(PaymentStatus currentStatus, UpdatePaymentStatusRequest updatePaymentStatusRequest){
+    private void validateStatusTransition(PaymentStatus currentStatus, UpdatePaymentStatusRequest updatePaymentStatusRequest){
         boolean valid = switch (currentStatus){
             case CREATED -> updatePaymentStatusRequest.getStatus() == PaymentStatus.PROCESSING;
             case PROCESSING -> updatePaymentStatusRequest.getStatus() == PaymentStatus.SUCCESS || updatePaymentStatusRequest.getStatus()  == PaymentStatus.FAILED;
             case SUCCESS -> updatePaymentStatusRequest.getStatus() == PaymentStatus.REFUND_PENDING;
-            case REFUND_PENDING ->  updatePaymentStatusRequest.getStatus() == PaymentStatus.REFUNDED;
-            case FAILED, REFUNDED -> false;
+            case REFUND_PENDING ->  updatePaymentStatusRequest.getStatus() == PaymentStatus.REFUNDED || updatePaymentStatusRequest.getStatus()  == PaymentStatus.REFUND_REJECTED;
+            case FAILED, REFUNDED, REFUND_REJECTED -> false;
         };
 
         if (!valid){
             throw new InvalidPaymentStatusTransitionException("Invalid payment status transition from " + currentStatus + " to " + updatePaymentStatusRequest.getStatus()  );
         }
-        return true;
+    }
+
+    private UUID extractUserIdFromAuthentication() {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null ||
+                !(authentication.getPrincipal() instanceof AuthenticatedUser authenticatedUser)) {
+
+            throw new InsufficientAuthenticationException("User is not authenticated");
+        }
+
+        return authenticatedUser.userId();
     }
 }

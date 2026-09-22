@@ -8,9 +8,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.venky.payflow.user.security.AuthenticatedUser;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -36,7 +38,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
-            UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(email, authToken, authorities);
+            UUID userId = jwtService.extractUserId(authToken);
+
+            AuthenticatedUser authenticatedUser =
+                    new AuthenticatedUser(
+                            userId,
+                            email,
+                            authorities
+                    );
+            UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(authenticatedUser, authToken, authorities);
 
             SecurityContextHolder.getContext().setAuthentication(token);
 
