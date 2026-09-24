@@ -3,9 +3,9 @@ spring:
     name: PayFlow
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/payflow
-    username: payflow
-    password: payflow
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
@@ -14,7 +14,7 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}
