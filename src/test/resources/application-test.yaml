@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/test
+    hikari:
+      connection-init-sql: SET TIME ZONE 'Asia/Kolkata'
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    open-in-view: false
+
+  jackson:
+    time-zone: Asia/Kolkata
+
+jwt:
+  secret: test-secret-key-for-payflow-testing-only-very-long
