@@ -35,12 +35,14 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final RequestHashService requestHashService;
     private final IdempotencyService idempotencyService;
+    private final PaymentCacheService paymentCacheService;
 
-    public PaymentServiceImpl(PaymentMapper paymentMapper, PaymentRepository paymentRepository, RequestHashService requestHashService, IdempotencyService idempotencyService) {
+    public PaymentServiceImpl(PaymentMapper paymentMapper, PaymentRepository paymentRepository, RequestHashService requestHashService, IdempotencyService idempotencyService, PaymentCacheService paymentCacheService) {
         this.paymentMapper = paymentMapper;
         this.paymentRepository = paymentRepository;
         this.requestHashService = requestHashService;
         this.idempotencyService = idempotencyService;
+        this.paymentCacheService = paymentCacheService;
     }
 
     @Transactional
@@ -89,13 +91,26 @@ public class PaymentServiceImpl implements PaymentService {
 
 
     @Override
-    public PaymentResponse getPaymentByPaymentId(UUID  paymentId) {
+    public PaymentResponse getPaymentByPaymentId(UUID paymentId) {
+
+        PaymentResponse cachedPayment = paymentCacheService.get(paymentId);
+
+        if (cachedPayment != null) {
+            return cachedPayment;
+        }
         Optional<Payment> payment = paymentRepository.findById(paymentId);
 
-        if (payment.isPresent()){
-            return paymentMapper.toResponse(payment.get());
+        if (payment.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "Payment not found with payment id " + paymentId
+            );
         }
-        throw  new ResourceNotFoundException("Payment not found with payment id " + paymentId);
+
+        PaymentResponse response = paymentMapper.toResponse(payment.get());
+
+        paymentCacheService.put(paymentId, response);
+
+        return response;
     }
 
     @Override
@@ -122,6 +137,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setStatus(PaymentStatus.REFUND_PENDING);
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
+        paymentCacheService.evict(paymentId);
 
         return paymentMapper.toResponse(payment);
     }
@@ -142,6 +158,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setUpdatedAt(LocalDateTime.now());
 
         paymentRepository.save(payment);
+        paymentCacheService.evict(paymentId);
         return paymentMapper.toResponse(payment);
 
     }
@@ -160,6 +177,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.get().setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment.get());
+        paymentCacheService.evict(paymentId);
 
         return paymentMapper.toResponse(payment.get());
     }

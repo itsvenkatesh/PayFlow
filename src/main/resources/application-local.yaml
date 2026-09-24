@@ -1,7 +1,4 @@
 spring:
-  application:
-    name: PayFlow
-
   datasource:
     url: jdbc:postgresql://localhost:5432/payflow
     username: payflow
@@ -12,17 +9,16 @@ spring:
       ddl-auto: update
     show-sql: true
     open-in-view: false
-    properties:
-      hibernate:
-        format_sql: true
+
   data:
     redis:
       host: localhost
       port: 6379
 
 jwt:
-  secret: {JWT_SECRET}
+  secret: ${JWT_SECRET}
   expiration: 3600000
 
-server:
-  port: ${PORT:8080}
+payment:
+  cache:
+    ttl: 10
