@@ -1,14 +1,12 @@
 package org.venky.payflow.payment.service;
 
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.venky.payflow.common.exception.IdempotencyConflictException;
 import org.venky.payflow.common.exception.InvalidPaymentStatusTransitionException;
 import org.venky.payflow.common.exception.ResourceNotFoundException;
+import org.venky.payflow.common.security.CurrentUserService;
 import org.venky.payflow.idempotency.service.IdempotencyCheckResult;
 import org.venky.payflow.idempotency.service.IdempotencyCheckStatus;
 import org.venky.payflow.idempotency.service.IdempotencyService;
@@ -20,7 +18,6 @@ import org.venky.payflow.payment.entity.Payment;
 import org.venky.payflow.payment.enums.PaymentStatus;
 import org.venky.payflow.payment.mapper.PaymentMapper;
 import org.venky.payflow.payment.repository.PaymentRepository;
-import org.venky.payflow.user.security.AuthenticatedUser;
 
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -36,19 +33,21 @@ public class PaymentServiceImpl implements PaymentService {
     private final RequestHashService requestHashService;
     private final IdempotencyService idempotencyService;
     private final PaymentCacheService paymentCacheService;
+    private final CurrentUserService currentUserService;
 
-    public PaymentServiceImpl(PaymentMapper paymentMapper, PaymentRepository paymentRepository, RequestHashService requestHashService, IdempotencyService idempotencyService, PaymentCacheService paymentCacheService) {
+    public PaymentServiceImpl(PaymentMapper paymentMapper, PaymentRepository paymentRepository, RequestHashService requestHashService, IdempotencyService idempotencyService, PaymentCacheService paymentCacheService, CurrentUserService currentUserService) {
         this.paymentMapper = paymentMapper;
         this.paymentRepository = paymentRepository;
         this.requestHashService = requestHashService;
         this.idempotencyService = idempotencyService;
         this.paymentCacheService = paymentCacheService;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional
     @Override
     public PaymentResponse createPaymentRequest(CreatePaymentRequest createPaymentRequest, String idempotencyKey) {
-        UUID customerId = extractUserIdFromAuthentication();
+        UUID customerId = currentUserService.extractUserIdFromAuthentication();
         String hash;
         try {
             hash = requestHashService.generateHash(createPaymentRequest, customerId);
@@ -122,7 +121,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
         Payment payment = paymentOptional.get();
 
-        UUID authenticatedUserId = extractUserIdFromAuthentication();
+        UUID authenticatedUserId = currentUserService.extractUserIdFromAuthentication();
 
         if (!payment.getCustomerId().equals(authenticatedUserId)) {
             throw new AccessDeniedException("You are not allowed to refund this payment");
@@ -159,6 +158,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         paymentRepository.save(payment);
         paymentCacheService.evict(paymentId);
+
         return paymentMapper.toResponse(payment);
 
     }
@@ -197,16 +197,5 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    private UUID extractUserIdFromAuthentication() {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null ||
-                !(authentication.getPrincipal() instanceof AuthenticatedUser authenticatedUser)) {
-
-            throw new InsufficientAuthenticationException("User is not authenticated");
-        }
-
-        return authenticatedUser.userId();
-    }
 }
