@@ -10,6 +10,8 @@ import org.venky.payflow.bankaccount.mapper.BankAccountMapper;
 import org.venky.payflow.bankaccount.repository.BankAccountRepository;
 import org.venky.payflow.common.exception.ResourceNotFoundException;
 import org.venky.payflow.common.security.CurrentUserService;
+import org.venky.payflow.transaction.entity.Transaction;
+import org.venky.payflow.transaction.service.TransactionService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -23,11 +25,13 @@ public class BankAccountServiceImpl implements BankAccountService{
     private final BankAccountRepository bankAccountRepository;
     private final CurrentUserService currentUserService;
     private final BankAccountMapper  bankAccountMapper;
+    private final TransactionService transactionService;
 
-    public BankAccountServiceImpl(BankAccountRepository bankAccountRepository, CurrentUserService currentUserService, BankAccountMapper bankAccountMapper) {
+    public BankAccountServiceImpl(BankAccountRepository bankAccountRepository, CurrentUserService currentUserService, BankAccountMapper bankAccountMapper, TransactionService transactionService) {
         this.bankAccountRepository = bankAccountRepository;
         this.currentUserService = currentUserService;
         this.bankAccountMapper = bankAccountMapper;
+        this.transactionService = transactionService;
     }
 
     @Override
@@ -180,10 +184,14 @@ public class BankAccountServiceImpl implements BankAccountService{
         bankAccountRepository.save(sourceBankAccount);
         bankAccountRepository.save(destinationBankAccount);
 
-        UUID transactionId = UUID.randomUUID();
+        Transaction transaction = transactionService.createTransferTransaction(
+                bankAccountId,
+                moneyTransferRequest.getDestinationBankAccountId(),
+                moneyTransferRequest.getAmount()
+        );
 
         TransferMoneyResponse transferMoneyResponse = new TransferMoneyResponse();
-        transferMoneyResponse.setTransactionId(transactionId);
+        transferMoneyResponse.setTransactionId(transaction.getId());
         transferMoneyResponse.setAmount(moneyTransferRequest.getAmount());
         transferMoneyResponse.setSourceBankAccountId(bankAccountId);
         transferMoneyResponse.setDestinationBankAccountId(moneyTransferRequest.getDestinationBankAccountId());
