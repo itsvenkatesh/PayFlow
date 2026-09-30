@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import org.venky.payflow.bankaccount.dto.*;
 import org.venky.payflow.bankaccount.service.BankAccountService;
+import org.venky.payflow.transaction.dto.TransactionResponse;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,12 +36,12 @@ public class BankAccountController {
     }
 
     @PostMapping("/{bankAccountId}/deposit")
-    public BalanceChangeResponse depositAmount(@PathVariable UUID bankAccountId, @Valid @RequestBody BalanceChangeRequest depositRequest){
+    public TransactionResponse depositAmount(@PathVariable UUID bankAccountId, @Valid @RequestBody BalanceChangeRequest depositRequest){
         return bankAccountService.deposit(bankAccountId ,depositRequest);
     }
 
     @PostMapping("/{bankAccountId}/withdraw")
-    public BalanceChangeResponse withdrawAmount(@PathVariable UUID bankAccountId, @Valid @RequestBody BalanceChangeRequest depositRequest){
+    public TransactionResponse withdrawAmount(@PathVariable UUID bankAccountId, @Valid @RequestBody BalanceChangeRequest depositRequest){
         return bankAccountService.withdraw(bankAccountId ,depositRequest);
     }
 
@@ -50,7 +51,7 @@ public class BankAccountController {
     }
 
     @PostMapping("/{bankAccountId}/transfer")
-    public TransferMoneyResponse transferMoney(@PathVariable UUID bankAccountId ,@Valid @RequestBody TransferMoneyRequest transferMoneyRequest){
+    public TransactionResponse transferMoney(@PathVariable UUID bankAccountId , @Valid @RequestBody TransferMoneyRequest transferMoneyRequest){
         return bankAccountService.transferMoney(bankAccountId, transferMoneyRequest);
     }
 }

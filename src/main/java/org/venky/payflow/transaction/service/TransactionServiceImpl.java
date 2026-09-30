@@ -37,7 +37,7 @@ public class TransactionServiceImpl implements TransactionService{
 
 
     @Override
-    public Transaction createTransferTransaction(UUID sourceBankAccountId, UUID destinationBankAccountId, BigDecimal amount) {
+    public TransactionResponse createTransferTransaction(UUID sourceBankAccountId, UUID destinationBankAccountId, BigDecimal amount) {
         LocalDateTime now = LocalDateTime.now();
 
         Transaction transaction = new Transaction();
@@ -52,10 +52,43 @@ public class TransactionServiceImpl implements TransactionService{
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
-        System.out.println("TRANSACTION ID AFTER SAVE = " + savedTransaction.getId());
+        return transactionMapper.toResponse(savedTransaction);
+    }
 
-        return savedTransaction;
-//        return transactionRepository.save(transaction);
+    @Override
+    public TransactionResponse createWithdrawalTransaction(UUID sourceBankAccountId, BigDecimal amount) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Transaction transaction = new Transaction();
+
+        transaction.setSourceBankAccountId(sourceBankAccountId);
+        transaction.setAmount(amount);
+        transaction.setStatus(TransactionStatus.SUCCESS);
+        transaction.setCreatedAt(now);
+        transaction.setUpdatedAt(now);
+        transaction.setType(TransactionType.WITHDRAW);
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        return transactionMapper.toResponse(savedTransaction);
+    }
+
+    @Override
+    public TransactionResponse createDepositTransaction(UUID destinationBankAccountId, BigDecimal amount) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Transaction transaction = new Transaction();
+
+        transaction.setDestinationBankAccountId(destinationBankAccountId);
+        transaction.setAmount(amount);
+        transaction.setStatus(TransactionStatus.SUCCESS);
+        transaction.setCreatedAt(now);
+        transaction.setUpdatedAt(now);
+        transaction.setType(TransactionType.DEPOSIT);
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        return transactionMapper.toResponse(savedTransaction);
     }
 
     @Override

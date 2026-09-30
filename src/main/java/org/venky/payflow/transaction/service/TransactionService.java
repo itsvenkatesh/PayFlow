@@ -9,13 +9,15 @@ import java.util.List;
 import java.util.UUID;
 
 public interface TransactionService {
-    Transaction createTransferTransaction(
-            UUID sourceBankAccountId,
-            UUID destinationBankAccountId,
-            BigDecimal amount
-    );
+    TransactionResponse createTransferTransaction(UUID sourceBankAccountId, UUID destinationBankAccountId,BigDecimal amount);
+
+    TransactionResponse createWithdrawalTransaction(UUID sourceBankAccountId,BigDecimal amount);
+
+    TransactionResponse createDepositTransaction(UUID destinationBankAccountId, BigDecimal amount);
 
     TransactionResponse getTransactionById(UUID transactionId);
 
     List<TransactionResponse> getMyTransactions(UUID bankAccountId);
+
+
 }

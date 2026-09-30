@@ -10,7 +10,7 @@ import org.venky.payflow.bankaccount.mapper.BankAccountMapper;
 import org.venky.payflow.bankaccount.repository.BankAccountRepository;
 import org.venky.payflow.common.exception.ResourceNotFoundException;
 import org.venky.payflow.common.security.CurrentUserService;
-import org.venky.payflow.transaction.entity.Transaction;
+import org.venky.payflow.transaction.dto.TransactionResponse;
 import org.venky.payflow.transaction.service.TransactionService;
 
 import java.math.BigDecimal;
@@ -84,7 +84,7 @@ public class BankAccountServiceImpl implements BankAccountService{
 
     @Override
     @Transactional
-    public BalanceChangeResponse deposit(UUID bankAccountId , BalanceChangeRequest depositRequest) {
+    public TransactionResponse deposit(UUID bankAccountId , BalanceChangeRequest depositRequest) {
         UUID loggedInUserId = currentUserService.extractUserIdFromAuthentication();
 
         BankAccount bankAccount = bankAccountRepository.findById(bankAccountId)
@@ -103,12 +103,13 @@ public class BankAccountServiceImpl implements BankAccountService{
 
         bankAccountRepository.save(bankAccount);
 
-        return new BalanceChangeResponse(depositRequest.getAmount(), bankAccount.getBalance());
+        return transactionService.createDepositTransaction(bankAccountId, depositRequest.getAmount());
+
     }
 
     @Override
     @Transactional
-    public BalanceChangeResponse withdraw(UUID bankAccountId, BalanceChangeRequest withdrawRequest) {
+    public TransactionResponse withdraw(UUID bankAccountId, BalanceChangeRequest withdrawRequest) {
         UUID loggedInUserId = currentUserService.extractUserIdFromAuthentication();
 
         BankAccount bankAccount = bankAccountRepository.findById(bankAccountId)
@@ -130,7 +131,7 @@ public class BankAccountServiceImpl implements BankAccountService{
         bankAccount.setUpdatedAt(LocalDateTime.now());
         bankAccountRepository.save(bankAccount);
 
-        return new BalanceChangeResponse(withdrawRequest.getAmount(), bankAccount.getBalance());
+        return transactionService.createWithdrawalTransaction(bankAccountId, withdrawRequest.getAmount());
     }
 
     @Override
@@ -148,7 +149,7 @@ public class BankAccountServiceImpl implements BankAccountService{
 
     @Override
     @Transactional
-    public TransferMoneyResponse transferMoney(UUID bankAccountId, TransferMoneyRequest moneyTransferRequest) {
+    public TransactionResponse  transferMoney(UUID bankAccountId, TransferMoneyRequest moneyTransferRequest) {
         UUID loggedInUserId = currentUserService.extractUserIdFromAuthentication();
 
         if (bankAccountId.equals(moneyTransferRequest.getDestinationBankAccountId())) {
@@ -184,21 +185,11 @@ public class BankAccountServiceImpl implements BankAccountService{
         bankAccountRepository.save(sourceBankAccount);
         bankAccountRepository.save(destinationBankAccount);
 
-        Transaction transaction = transactionService.createTransferTransaction(
+        return transactionService.createTransferTransaction(
                 bankAccountId,
                 moneyTransferRequest.getDestinationBankAccountId(),
                 moneyTransferRequest.getAmount()
         );
-
-        TransferMoneyResponse transferMoneyResponse = new TransferMoneyResponse();
-        transferMoneyResponse.setTransactionId(transaction.getId());
-        transferMoneyResponse.setAmount(moneyTransferRequest.getAmount());
-        transferMoneyResponse.setSourceBankAccountId(bankAccountId);
-        transferMoneyResponse.setDestinationBankAccountId(moneyTransferRequest.getDestinationBankAccountId());
-        transferMoneyResponse.setSourceBalance(sourceBankAccount.getBalance());
-        transferMoneyResponse.setStatus("Success");
-
-        return transferMoneyResponse;
     }
 
     private String generateAccountNumber() {
