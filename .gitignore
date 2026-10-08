@@ -1,14 +1,23 @@
-# Maven
-target/
+# =========================
+# Java / Maven
+# =========================
+**/target/
 .mvn/wrapper/maven-wrapper.jar
 
+# =========================
 # IntelliJ IDEA
+# =========================
 .idea/
 *.iml
 *.iws
 *.ipr
 
+# Junie
+.junie/
+
+# =========================
 # Eclipse / STS
+# =========================
 .classpath
 .factorypath
 .project
@@ -17,17 +26,37 @@ target/
 .sts4-cache
 .apt_generated
 
+# =========================
 # NetBeans
+# =========================
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
+**/build/
 
-# VS Code
-.vscode/
+# =========================
+# Node / React
+# =========================
+**/node_modules/
+**/dist/
+**/.vite/
 
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
 # OS
+# =========================
 .DS_Store
 Thumbs.db
