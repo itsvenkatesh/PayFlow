@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -14,8 +15,10 @@ public class TransferMoneyRequest {
     @NotBlank
     private String sourceBankAccountNumber;
 
-    @NotBlank
     private String destinationBankAccountNumber;
+
+    @Email
+    private String recipientEmail;
 
     @NotNull
     @Positive

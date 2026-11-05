@@ -29,9 +29,9 @@ public class BankAccountController {
         return bankAccountService.getMyBankAccounts();
     }
 
-    @GetMapping("/{bankAccountId}")
-    public BankAccountResponse getBankAccountById(@PathVariable UUID bankAccountId){
-        return bankAccountService.getBankAccountById(bankAccountId);
+    @GetMapping("/{bankAccountNumber}")
+    public BankAccountResponse getBankAccountById(@PathVariable String bankAccountNumber){
+        return bankAccountService.getBankAccountById(bankAccountNumber);
     }
 
     @PostMapping("/{bankAccountNumber}/deposit")
