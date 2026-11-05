@@ -2,21 +2,26 @@ package org.venky.payflow.transaction.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.venky.payflow.bankaccount.entity.BankAccount;
 import org.venky.payflow.bankaccount.repository.BankAccountRepository;
 import org.venky.payflow.common.exception.ResourceNotFoundException;
 import org.venky.payflow.common.security.CurrentUserService;
+import org.venky.payflow.transaction.dto.TransactionFilter;
 import org.venky.payflow.transaction.dto.TransactionResponse;
 import org.venky.payflow.transaction.entity.Transaction;
+import org.venky.payflow.transaction.enums.TransactionDirection;
 import org.venky.payflow.transaction.enums.TransactionStatus;
 import org.venky.payflow.transaction.enums.TransactionType;
 import org.venky.payflow.transaction.mapper.TransactionMapper;
 import org.venky.payflow.transaction.repository.TransactionRepository;
+import org.venky.payflow.transaction.specification.TransactionSpecifications;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -131,20 +136,73 @@ public class TransactionServiceImpl implements TransactionService{
     }
 
     @Override
-    public Page<TransactionResponse> getMyTransactions(String bankAccountNumber, Pageable pageable) {
-        UUID loggedInUser = currentUserService.extractUserIdFromAuthentication();
+    public Page<TransactionResponse> getMyTransactions(
+            TransactionFilter filter,
+            Pageable pageable
+    ) {
+        UUID loggedInUserId =
+                currentUserService.extractUserIdFromAuthentication();
 
-        BankAccount bankAccount = bankAccountRepository.findByBankAccountNumber(bankAccountNumber)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Bank account not found"));
+        List<BankAccount> userAccounts =
+                bankAccountRepository.findByUserId(loggedInUserId);
 
-        if (!bankAccount.getUserId().equals(loggedInUser)) {
-            throw new AccessDeniedException("You do not have access to this bank account");
+        List<String> userAccountNumbers = userAccounts.stream()
+                .map(BankAccount::getBankAccountNumber)
+                .toList();
+
+        if (userAccountNumbers.isEmpty()) {
+            return Page.empty(pageable);
         }
 
-        Page<Transaction> transactions = transactionRepository.findBySourceBankAccountNumberOrDestinationBankAccountNumberOrderByCreatedAtDesc(bankAccountNumber, bankAccountNumber, pageable);
+        List<String> selectedAccountNumbers = null;
 
-        return transactions.map(transactionMapper::toResponse);
+        if (filter.getBankAccountNumbers() != null
+                && !filter.getBankAccountNumbers().isEmpty()) {
+
+            // Only accept account numbers owned by this user.
+            selectedAccountNumbers = filter.getBankAccountNumbers()
+                    .stream()
+                    .distinct()
+                    .toList();
+
+            if (!userAccountNumbers.containsAll(selectedAccountNumbers)) {
+                throw new ResourceNotFoundException(
+                        "One or more bank accounts were not found"
+                );
+            }
+        }
+
+        var specification =
+                TransactionSpecifications.filterTransactions(
+                        userAccountNumbers,
+                        selectedAccountNumbers,
+                        filter
+                );
+
+        return transactionRepository.findAll(specification, pageable)
+                .map(transaction -> {
+                    TransactionResponse response =
+                            transactionMapper.toResponse(transaction);
+
+                    boolean sentByUser = userAccountNumbers.contains(
+                            transaction.getSourceBankAccountNumber()
+                    );
+
+                    boolean receivedByUser = userAccountNumbers.contains(
+                            transaction.getDestinationBankAccountNumber()
+                    );
+
+                    if (sentByUser && !receivedByUser) {
+                        response.setDirection(TransactionDirection.SENT);
+                    } else if (receivedByUser && !sentByUser) {
+                        response.setDirection(TransactionDirection.RECEIVED);
+                    } else {
+                        // Both accounts belong to the user.
+                        // Direction is ambiguous for an internal transfer.
+                        response.setDirection(null);
+                    }
+
+                    return response;
+                });
     }
-
 }

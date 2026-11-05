@@ -7,6 +7,7 @@ import org.venky.payflow.payment.dto.TransferMoneyRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -36,10 +37,13 @@ public class RequestHashServiceImpl
             UUID customerId)
             throws NoSuchAlgorithmException {
 
+        String destination = request.getRecipientEmail() == null
+                ? request.getDestinationBankAccountNumber()
+                : request.getRecipientEmail().trim().toLowerCase(Locale.ROOT);
         String canonical =
                 request.getSourceBankAccountNumber()
                         + "|"
-                        + request.getDestinationBankAccountNumber()
+                        + destination
                         + "|"
                         + request.getAmount()
                         + "|"

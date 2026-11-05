@@ -3,6 +3,7 @@ package org.venky.payflow.transaction.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.venky.payflow.transaction.dto.TransactionFilter;
 import org.venky.payflow.transaction.dto.TransactionResponse;
 import org.venky.payflow.transaction.entity.Transaction;
 
@@ -19,7 +20,6 @@ public interface TransactionService {
 
     TransactionResponse getTransactionById(UUID transactionId);
 
-    Page<TransactionResponse> getMyTransactions(String sourceBankAccountNumber, Pageable pageable);
-
+    Page<TransactionResponse> getMyTransactions(TransactionFilter filter, Pageable pageable);
 
 }

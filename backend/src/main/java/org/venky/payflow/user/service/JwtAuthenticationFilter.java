@@ -2,6 +2,7 @@ package org.venky.payflow.user.service;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,22 +24,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String authToken = extractToken(request);
+
+        if (authToken == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            String authToken = authHeader.substring(7);
-
+            // Validate the JWT before trusting its claims.
             String email = jwtService.extractEmail(authToken);
             String role = jwtService.extractRole(authToken);
-
-            var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-
             UUID userId = jwtService.extractUserId(authToken);
+
+            var authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_" + role)
+            );
 
             AuthenticatedUser authenticatedUser =
                     new AuthenticatedUser(
@@ -46,14 +53,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             email,
                             authorities
                     );
-            UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(authenticatedUser, authToken, authorities);
 
-            SecurityContextHolder.getContext().setAuthentication(token);
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            authenticatedUser,
+                            null,
+                            authorities
+                    );
 
-        }
-        catch (Exception e) {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authentication);
+
+        } catch (Exception e) {
             SecurityContextHolder.clearContext();
         }
+
         filterChain.doFilter(request, response);
+    }
+
+    private String extractToken(HttpServletRequest request) {
+
+        // 1. Check the Authorization header first.
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        // 2. Fall back to the HttpOnly cookie.
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("accessToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        return null;
     }
 }

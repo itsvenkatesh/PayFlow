@@ -25,11 +25,14 @@ import org.venky.payflow.payment.mapper.PaymentMapper;
 import org.venky.payflow.payment.repository.PaymentRepository;
 import org.venky.payflow.transaction.dto.TransactionResponse;
 import org.venky.payflow.transaction.service.TransactionService;
+import org.venky.payflow.user.entity.User;
+import org.venky.payflow.user.repository.UserRepository;
 
 import java.math.BigDecimal;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,6 +47,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final CurrentUserService currentUserService;
     private final BankAccountRepository bankAccountRepository;
     private final TransactionService transactionService;
+    private final UserRepository userRepository;
 
     public PaymentServiceImpl(
             PaymentMapper paymentMapper,
@@ -53,7 +57,8 @@ public class PaymentServiceImpl implements PaymentService {
             PaymentCacheService paymentCacheService,
             CurrentUserService currentUserService,
             BankAccountRepository bankAccountRepository,
-            TransactionService transactionService) {
+            TransactionService transactionService,
+            UserRepository userRepository) {
 
         this.paymentMapper = paymentMapper;
         this.paymentRepository = paymentRepository;
@@ -63,6 +68,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.currentUserService = currentUserService;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionService = transactionService;
+        this.userRepository = userRepository;
     }
 
 
@@ -94,7 +100,17 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (idempotencyCheckResult.getStatus()
                 == IdempotencyCheckStatus.RETRY) {
-            throw new IllegalStateException("Transfer idempotency replay is not implemented yet");
+            TransactionResponse transaction = transactionService.getTransactionById(
+                    idempotencyCheckResult.getPaymentId());
+            return new TransferMoneyResponse(
+                    transaction.getTransactionId(),
+                    transaction.getSourceBankAccountNumber(),
+                    transaction.getDestinationBankAccountNumber(),
+                    transaction.getAmount(),
+                    request.getCurrency(),
+                    transaction.getStatus(),
+                    transaction.getCreatedAt()
+            );
         }
 
 
@@ -112,12 +128,44 @@ public class PaymentServiceImpl implements PaymentService {
                                 new ResourceNotFoundException("Source bank account not found")
                         );
 
-        BankAccount destinationAccount =
-                bankAccountRepository
-                        .findByBankAccountNumber(
-                                request.getDestinationBankAccountNumber()
-                        )
-                        .orElseThrow(() -> new ResourceNotFoundException("Destination bank account not found"));
+        boolean hasDestinationAccount = request.getDestinationBankAccountNumber() != null
+                && !request.getDestinationBankAccountNumber().isBlank();
+        boolean hasRecipientEmail = request.getRecipientEmail() != null
+                && !request.getRecipientEmail().isBlank();
+        if (hasDestinationAccount == hasRecipientEmail) {
+            throw new IllegalArgumentException("Provide exactly one destination account number or recipient email");
+        }
+
+        BankAccount destinationAccount;
+        if (hasRecipientEmail) {
+            String recipientEmail = request.getRecipientEmail().trim().toLowerCase(Locale.ROOT);
+            User recipient = userRepository.findByEmailIgnoreCase(recipientEmail);
+            if (recipient == null) {
+                throw new ResourceNotFoundException("Recipient not found");
+            }
+            if (recipient.getId().equals(loggedInUserId)) {
+                throw new IllegalArgumentException("You cannot send a payment to yourself");
+            }
+
+            List<BankAccount> recipientAccounts = bankAccountRepository.findByUserId(recipient.getId())
+                    .stream()
+                    .filter(account -> account.getStatus() == BankAccountStatus.ACTIVE)
+                    .filter(account -> account.getCurrency().equalsIgnoreCase(request.getCurrency()))
+                    .toList();
+            if (recipientAccounts.isEmpty()) {
+                throw new ResourceNotFoundException(
+                        "Recipient has no active bank account in the selected currency");
+            }
+            if (recipientAccounts.size() > 1) {
+                throw new IllegalArgumentException(
+                        "Recipient must have exactly one active account in the selected currency for email payments");
+            }
+            destinationAccount = recipientAccounts.getFirst();
+        } else {
+            destinationAccount = bankAccountRepository
+                    .findByBankAccountNumber(request.getDestinationBankAccountNumber())
+                    .orElseThrow(() -> new ResourceNotFoundException("Destination bank account not found"));
+        }
 
         if (!sourceAccount.getUserId()
                 .equals(loggedInUserId)) {
@@ -169,6 +217,12 @@ public class PaymentServiceImpl implements PaymentService {
                         destinationAccount.getBankAccountNumber(),
                         amount
                 );
+
+        idempotencyService.saveRecord(
+                idempotencyKey,
+                hash,
+                transaction.getTransactionId()
+        );
 
         return new TransferMoneyResponse(
                 transaction.getTransactionId(),
