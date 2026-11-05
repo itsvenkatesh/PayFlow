@@ -12,6 +12,7 @@ import org.venky.payflow.user.mapper.UserMapper;
 import org.venky.payflow.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class AuthServiceImpl implements AuthService{
@@ -49,7 +50,7 @@ public class AuthServiceImpl implements AuthService{
     public LoginResponse login(LoginRequest loginRequest) {
 
         User savedUser = userRepository.findByEmail(loginRequest.getEmail());
-        System.out.println(savedUser);
+
         if(savedUser == null){
             throw new BadCredentialsException("Invalid email");
         }
@@ -65,5 +66,12 @@ public class AuthServiceImpl implements AuthService{
         );
 
         return  new LoginResponse(token);
+    }
+
+    @Override
+    public UserResponse getCurrentUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + userId));
+        return userMapper.toResponse(user);
     }
 }

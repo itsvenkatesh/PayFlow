@@ -61,11 +61,11 @@ public class BankAccountServiceImpl implements BankAccountService{
     }
 
     @Override
-    public BankAccountResponse getBankAccountById(UUID accountId) {
+    public BankAccountResponse getBankAccountById(String bankAccountNumber) {
         UUID loggedInUserId = currentUserService.extractUserIdFromAuthentication();
 
-        BankAccount bankAccount = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Bank account not found with id: " + accountId));
+        BankAccount bankAccount = bankAccountRepository.findByBankAccountNumber(bankAccountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Bank account not found with account number : " + bankAccountNumber));
 
         if (!bankAccount.getUserId().equals(loggedInUserId)) {
             throw new AccessDeniedException("You do not have access to this bank account");

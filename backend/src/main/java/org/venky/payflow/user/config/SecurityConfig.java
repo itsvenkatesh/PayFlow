@@ -45,6 +45,9 @@ public class SecurityConfig {
                                         HttpMethod.POST,
                                         "/api/v1/auth/signup").permitAll()
                                 .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/logout").permitAll()
+                                .requestMatchers(
                                         HttpMethod.PATCH,
                                         "/api/v1/payments/*/status").hasRole("ADMIN")
                                 .anyRequest().authenticated())

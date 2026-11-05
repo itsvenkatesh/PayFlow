@@ -10,7 +10,7 @@ public interface BankAccountService {
 
     BankAccountResponse createBankAccount(CreateBankAccountRequest bankAccountRequest);
 
-    BankAccountResponse getBankAccountById(UUID accountId);
+    BankAccountResponse getBankAccountById(String bankAccountNumber);
 
     List<BankAccountResponse> getMyBankAccounts();
 
